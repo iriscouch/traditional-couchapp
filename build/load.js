@@ -4,6 +4,14 @@ var fs = require('fs')
   , utils = require('./utils')
 
 module.exports = function (root, dir, settings, doc, callback) {
+  var app_settings = settings['traditional-couchapp'] || {}
+  if(typeof app_settings == 'string')
+    app_settings = {'path':app_settings}
+
+  // Load the couchapp from a specified subdirectory ("." by default).
+  var app_dir = app_settings.path || '.'
+  dir = path.join(dir, app_dir)
+
   fs.readdir(dir, function (err, files) {
     if (err)
       return callback(err)

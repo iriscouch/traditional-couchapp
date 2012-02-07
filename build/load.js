@@ -36,7 +36,10 @@ module.exports = function (root, dir, settings, doc, callback) {
 
         if (f === '_attachments')
           utils.loadAttachments(dir + '/_attachments', p, doc, cb)
-        else
+        else if(f === '_docs') {
+          console.error('Additional docs unsupported: ' + p)
+          return cb()
+        } else
           utils.loadFiles(dir, p, doc, cb)
       },
       function (err) {

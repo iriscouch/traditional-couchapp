@@ -20,18 +20,23 @@ exports.loadFiles = function (pkgdir, p, doc, callback) {
 }
 
 exports.addFile = function (pkgdir, p, doc, callback) {
-  fs.readFile(p, function (err, content) {
+  fs.readFile(p, 'utf8', function (err, content) {
     if (err)
       return callback(err)
 
     var rel = utils.relpath(p, pkgdir)
-    var prop = rel
-    if (rel.indexOf('.') !== -1) {
-      var parts = rel.split('.')
+      , prop = rel
+      , parts = rel.split('.')
+
+    if(parts.length > 1) {
       prop = parts.slice(0, parts.length - 1).join('.')
+
+      // Files with a .json extension are structured data, not a string.
+      if(parts[parts.length - 1] == 'json')
+        content = JSON.parse(content)
     }
-    var src = content.toString()
-    exports.add(doc, prop, src)
+
+    exports.add(doc, prop, content)
     callback()
   })
 }

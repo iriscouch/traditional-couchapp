@@ -16,34 +16,62 @@ module.exports = function (root, dir, settings, doc, callback) {
     if (err)
       return callback(err)
 
-    // remove hidden files and .json config files
-    files = files.filter(function (f) {
-      // don't add configuration files
-      if (f === 'kanso.json' || f === 'couchapp.json')
-          return false
+    var couchappignore = []
+    if(!~ files.indexOf('.couchappignore'))
+      return async.forEach(files, load_file, files_loaded)
 
-      // don't add other kanso packages directly
-      if (f === 'packages')
-          return false
+    // Othwerwise load the .couchappignore first.
+    return fs.readFile(dir + '/.couchappignore', 'utf8', function(er, body) {
+      if(er)
+        return callback(er)
 
-      // don't add hidden files with preceeding '.'
-      return f[0] !== '.'
+      try {
+        couchappignore = JSON.parse(body)
+      } catch (json_er) {
+        return callback(json_er)
+      }
+
+      if(!Array.isArray(couchappignore))
+        return callback(new Error('Invalid .couchappignore JSON'))
+
+      // With .couchappignore initialized, now load the data.
+      return async.forEach(files, load_file, files_loaded)
     })
 
-    async.forEach(files,
-      function (f, cb) {
-        var p = path.join(dir, f)
+    function load_file(f, to_async) {
+      var file_path = path.join(dir, f)
 
-        if (f === '_attachments')
-          utils.loadAttachments(dir + '/_attachments', p, doc, cb)
-        else if(f === '_docs') {
-          console.error('Additional docs unsupported: ' + p)
-          return cb()
-        } else
-          utils.loadFiles(dir, p, doc, cb)
-      },
-      function (err) {
-        callback(err, doc)
-      })
+      // Don't add configuration files.
+      if (f == 'kanso.json' || f == 'couchapp.json')
+        return to_async()
+
+      // Don't add other kanso packages directly.
+      if (f == 'packages')
+        return to_async()
+
+      if(f == '_docs') {
+        console.error('Additional docs unsupported: ' + file_path)
+        return to_async()
+      }
+
+      // Ignore hidden files.
+      if(f[0] == '.')
+          return to_async()
+
+      // Ignore files indicated in .couchappignore
+      if(~ couchappignore.indexOf(f))
+        return to_async()
+
+      // Load any attachments.
+      if(f == '_attachments')
+        return utils.loadAttachments(dir + '/_attachments', file_path, doc, to_async)
+
+      // Otherwise, load the file.
+      utils.loadFiles(dir, file_path, doc, to_async)
+    }
+
+    function files_loaded(er) {
+      callback(er, doc)
+    }
   })
 }
